@@ -3,7 +3,7 @@ import tensorflow as tf
 from gym.spaces import Discrete, Box, MultiBinary, MultiDiscrete
 
 
-def observation_input(ob_space, batch_size=None, name='Ob', scale=False):
+def observation_input(ob_space, batch_size=None, name='Ob', scale=False, preserve_structure=False):
     """
     Build observation input with encoding depending on the observation space type
 
@@ -39,11 +39,18 @@ def observation_input(ob_space, batch_size=None, name='Ob', scale=False):
         return observation_ph, processed_observations
 
     elif isinstance(ob_space, MultiDiscrete):
-        observation_ph = tf.placeholder(shape=(batch_size, len(ob_space.nvec)), dtype=tf.int32, name=name)
-        processed_observations = tf.concat([
-            tf.cast(tf.one_hot(input_split, ob_space.nvec[i]), tf.float32) for i, input_split
-            in enumerate(tf.split(observation_ph, len(ob_space.nvec), axis=-1))
-        ], axis=-1)
+        observation_ph = tf.placeholder(shape=(batch_size, *ob_space.shape), dtype=tf.int32, name=name)
+        if preserve_structure:
+            observation_ph = tf.placeholder(shape=(batch_size,) + ob_space.shape, dtype=tf.int32, name=name)
+            processed_observations = tf.cast(tf.one_hot(observation_ph, np.max(ob_space.nvec)), tf.float32)
+        else:
+            feature_dim = np.prod(ob_space.shape)
+            flattened_ob_space = np.reshape(ob_space.nvec, (feature_dim, ))
+            flattened_observations_ph = tf.reshape(observation_ph, (-1, feature_dim))
+            processed_observations = tf.concat([
+                tf.cast(tf.one_hot(input_split, flattened_ob_space[i]), tf.float32) for i, input_split
+                in enumerate(tf.split(flattened_observations_ph, feature_dim, axis=-1))
+            ], axis=-1)
         return observation_ph, processed_observations
 
     else:

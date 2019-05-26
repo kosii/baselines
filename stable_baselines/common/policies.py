@@ -101,19 +101,19 @@ class BasePolicy(ABC):
     :param reuse: (bool) If the policy is reusable or not
     :param scale: (bool) whether or not to scale the input
     :param obs_phs: (TensorFlow Tensor, TensorFlow Tensor) a tuple containing an override for observation placeholder
-        and the processed observation placeholder respectivly
+        and the processed observation placeholder respectively
     :param add_action_ph: (bool) whether or not to create an action placeholder
     """
 
     recurrent = False
 
-    def __init__(self, sess, ob_space, ac_space, n_env, n_steps, n_batch, reuse=False, scale=False,
+    def __init__(self, sess, ob_space, ac_space, n_env, n_steps, n_batch, reuse=False, scale=False, preserve_structure=False,
                  obs_phs=None, add_action_ph=False):
         self.n_env = n_env
         self.n_steps = n_steps
         with tf.variable_scope("input", reuse=False):
             if obs_phs is None:
-                self._obs_ph, self._processed_obs = observation_input(ob_space, n_batch, scale=scale)
+                self._obs_ph, self._processed_obs = observation_input(ob_space, n_batch, scale=scale, preserve_structure=preserve_structure)
             else:
                 self._obs_ph, self._processed_obs = obs_phs
 
@@ -170,9 +170,9 @@ class BasePolicy(ABC):
         # When using policy_kwargs parameter on model creation,
         # all keywords arguments must be consumed by the policy constructor except
         # the ones for the cnn_extractor network (cf nature_cnn()), where the keywords arguments
-        # are not passed explicitely (using **kwargs to forward the arguments)
+        # are not passed explicitly (using **kwargs to forward the arguments)
         # that's why there should be not kwargs left when using the mlp_extractor
-        # (in that case the keywords arguments are passed explicitely)
+        # (in that case the keywords arguments are passed explicitly)
         if feature_extraction == 'mlp' and len(kwargs) > 0:
             raise ValueError("Unknown keywords for policy: {}".format(kwargs))
 
@@ -215,9 +215,9 @@ class ActorCriticPolicy(BasePolicy):
     :param scale: (bool) whether or not to scale the input
     """
 
-    def __init__(self, sess, ob_space, ac_space, n_env, n_steps, n_batch, reuse=False, scale=False):
+    def __init__(self, sess, ob_space, ac_space, n_env, n_steps, n_batch, reuse=False, scale=False, preserve_structure=False):
         super(ActorCriticPolicy, self).__init__(sess, ob_space, ac_space, n_env, n_steps, n_batch, reuse=reuse,
-                                                scale=scale)
+                                                scale=scale, preserve_structure=preserve_structure)
         self._pdtype = make_proba_dist_type(ac_space)
         self._policy = None
         self._proba_distribution = None
@@ -364,7 +364,7 @@ class RecurrentActorCriticPolicy(ActorCriticPolicy):
     def states_ph(self):
         """tf.Tensor: placeholder for states, shape (self.n_env, ) + state_shape."""
         return self._states_ph
-    
+
     @abstractmethod
     def value(self, obs, state=None, mask=None):
         """
@@ -536,9 +536,9 @@ class FeedForwardPolicy(ActorCriticPolicy):
     """
 
     def __init__(self, sess, ob_space, ac_space, n_env, n_steps, n_batch, reuse=False, layers=None, net_arch=None,
-                 act_fun=tf.tanh, cnn_extractor=nature_cnn, feature_extraction="cnn", **kwargs):
+                 act_fun=tf.tanh, cnn_extractor=nature_cnn, feature_extraction="cnn", preserve_structure=False, **kwargs):
         super(FeedForwardPolicy, self).__init__(sess, ob_space, ac_space, n_env, n_steps, n_batch, reuse=reuse,
-                                                scale=(feature_extraction == "cnn"))
+                                                scale=(feature_extraction == "cnn"), preserve_structure=preserve_structure)
 
         self._kwargs_check(feature_extraction, kwargs)
 
